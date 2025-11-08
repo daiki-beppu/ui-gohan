@@ -37,11 +37,6 @@ export default function HomeScreen() {
       />
 
       <ScrollView className="flex-1 bg-background">
-        {/* ユーザー情報ヘッダー（将来実装） */}
-        <View className="border-b border-border bg-card p-4">
-          <Text className="text-lg font-semibold">今週の献立</Text>
-          <Text className="text-sm text-muted-foreground">月曜日から日曜日までの7日分</Text>
-        </View>
         {/* 献立リスト */}
         <View className="gap-4 p-4">
           {isLoading ? (
