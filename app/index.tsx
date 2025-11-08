@@ -1,78 +1,69 @@
-import { Button } from '@/components/ui/button';
-import { Icon } from '@/components/ui/icon';
+import { DaySection } from '@/components/day-section';
 import { Text } from '@/components/ui/text';
-import { Link, Stack, useRouter } from 'expo-router';
-import { MoonStarIcon, StarIcon, SunIcon } from 'lucide-react-native';
-import { useColorScheme } from 'nativewind';
-import * as React from 'react';
-import { Image, type ImageStyle, View } from 'react-native';
+import { DAY_LABELS } from '@/const/day-of-week';
+import { MOCK_MENUS } from '@/lib/mock-data';
+import type { Menu } from '@/types/menu';
+import { Stack } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ScrollView, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-const LOGO = {
-  light: require('@/assets/images/react-native-reusables-light.png'),
-  dark: require('@/assets/images/react-native-reusables-dark.png'),
-};
+export default function HomeScreen() {
+  const [menus, setMenus] = useState<Menu[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-const SCREEN_OPTIONS = {
-  title: 'ui gohan',
-  headerTransparent: false,
-  headerRight: () => <ThemeToggle />,
-};
+  // モックデータを読み込む（後でAPI呼び出しに置き換え）
+  useEffect(() => {
+    // ローディングシミュレーション
+    setTimeout(() => {
+      setMenus(MOCK_MENUS);
+      setIsLoading(false);
+    }, 500);
+  }, []);
 
-const IMAGE_STYLE: ImageStyle = {
-  height: 76,
-  width: 76,
-};
-
-const debugButtonConfig = [
-  {
-    label: 'パスワードリセット画面',
-    path: '/(auth)/forgot-password',
-  },
-  {
-    label: 'パスワード再設定',
-    path: '/(auth)/reset-password',
-  },
-] as const;
-
-export default function Screen() {
-  const router = useRouter();
+  // 曜日ごとにグループ化（月曜=0, 日曜=6）
+  const menusByDay = DAY_LABELS.map((label, index) => ({
+    label,
+    dayOfWeek: index,
+    menus: menus.filter((menu) => menu.dayOfWeek === index),
+  }));
 
   return (
-    <>
-      <Stack.Screen options={SCREEN_OPTIONS} />
-      <View className="flex-1 items-center justify-center gap-8 p-4">
-        <Text> ういごはんへようこそ！</Text>
+    <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
+      <Stack.Screen
+        options={{
+          title: 'ういごはん',
+        }}
+      />
 
-        {debugButtonConfig.map(({ label, path }) => {
-          return (
-            <Button
-              key={path}
-              onPress={() => router.push(path)}
-              className="w-full justify-center text-black">
-              <Text>{label}</Text>
-            </Button>
-          );
-        })}
-      </View>
-    </>
-  );
-}
-
-const THEME_ICONS = {
-  light: SunIcon,
-  dark: MoonStarIcon,
-};
-
-function ThemeToggle() {
-  const { colorScheme, toggleColorScheme } = useColorScheme();
-
-  return (
-    <Button
-      onPressIn={toggleColorScheme}
-      size="icon"
-      variant="ghost"
-      className="ios:size-9 rounded-full web:mx-4">
-      <Icon as={THEME_ICONS[colorScheme ?? 'light']} className="size-5" />
-    </Button>
+      <ScrollView className="flex-1 bg-background">
+        {/* ユーザー情報ヘッダー（将来実装） */}
+        <View className="border-b border-border bg-card p-4">
+          <Text className="text-lg font-semibold">今週の献立</Text>
+          <Text className="text-sm text-muted-foreground">月曜日から日曜日までの7日分</Text>
+        </View>
+        {/* 献立リスト */}
+        <View className="gap-4 p-4">
+          {isLoading ? (
+            <View className="items-center justify-center py-8">
+              <Text className="text-muted-foreground">献立を読み込んでいます...</Text>
+            </View>
+          ) : (
+            menusByDay.map(({ label, dayOfWeek, menus: dayMenus }) => (
+              <DaySection
+                key={dayOfWeek}
+                dayLabel={label}
+                dayOfWeek={dayOfWeek}
+                menus={dayMenus}
+                onAddPress={() => {
+                  // 献立追加画面への遷移（将来実装）
+                  console.log('Add menu for:', dayOfWeek);
+                }}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
