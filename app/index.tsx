@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
-import { Link, Stack } from 'expo-router';
+import { Link, Stack, useRouter } from 'expo-router';
 import { MoonStarIcon, StarIcon, SunIcon } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 import * as React from 'react';
@@ -13,8 +13,8 @@ const LOGO = {
 };
 
 const SCREEN_OPTIONS = {
-  title: 'React Native Reusables',
-  headerTransparent: true,
+  title: 'ui gohan',
+  headerTransparent: false,
   headerRight: () => <ThemeToggle />,
 };
 
@@ -23,35 +23,36 @@ const IMAGE_STYLE: ImageStyle = {
   width: 76,
 };
 
+const debugButtonConfig = [
+  {
+    label: 'パスワードリセット画面',
+    path: '/(auth)/forgot-password',
+  },
+  {
+    label: 'パスワード再設定',
+    path: '/(auth)/reset-password',
+  },
+] as const;
+
 export default function Screen() {
-  const { colorScheme } = useColorScheme();
+  const router = useRouter();
 
   return (
     <>
       <Stack.Screen options={SCREEN_OPTIONS} />
       <View className="flex-1 items-center justify-center gap-8 p-4">
-        <Image source={LOGO[colorScheme ?? 'light']} style={IMAGE_STYLE} resizeMode="contain" />
-        <View className="gap-2 p-4">
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            1. Edit <Text variant="code">app/index.tsx</Text> to get started.
-          </Text>
-          <Text className="ios:text-foreground font-mono text-sm text-muted-foreground">
-            2. Save to see your changes instantly.
-          </Text>
-        </View>
-        <View className="flex-row gap-2">
-          <Link href="https://reactnativereusables.com" asChild>
-            <Button>
-              <Text>Browse the Docs</Text>
+        <Text> ういごはんへようこそ！</Text>
+
+        {debugButtonConfig.map(({ label, path }) => {
+          return (
+            <Button
+              key={path}
+              onPress={() => router.push(path)}
+              className="w-full justify-center text-black">
+              <Text>{label}</Text>
             </Button>
-          </Link>
-          <Link href="https://github.com/founded-labs/react-native-reusables" asChild>
-            <Button variant="ghost">
-              <Text>Star the Repo</Text>
-              <Icon as={StarIcon} />
-            </Button>
-          </Link>
-        </View>
+          );
+        })}
       </View>
     </>
   );
