@@ -1,4 +1,4 @@
-export const DayOfWeek = {
+export const DAY_OF_WEEK = {
   Sunday: 0,
   Monday: 1,
   Tuesday: 2,
