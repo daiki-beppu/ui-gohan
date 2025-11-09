@@ -11,9 +11,18 @@ type DaySectionProps = {
   dayOfWeek: number;
   menus: Menu[];
   onAddPress?: () => void;
+  onEditMenu?: (menuId: string) => void;
+  onDeleteMenu?: (menuId: string) => void;
 };
 
-export function DaySection({ dayLabel, dayOfWeek, menus, onAddPress }: DaySectionProps) {
+export function DaySection({
+  dayLabel,
+  dayOfWeek,
+  menus,
+  onAddPress,
+  onEditMenu,
+  onDeleteMenu,
+}: DaySectionProps) {
   return (
     <Card>
       <CardHeader className="border-b border-border">
@@ -31,7 +40,12 @@ export function DaySection({ dayLabel, dayOfWeek, menus, onAddPress }: DaySectio
         {menus.length > 0 ? (
           <View className="gap-3">
             {menus.map((menu) => (
-              <MenuCard key={menu.id} menu={menu} />
+              <MenuCard
+                key={menu.id}
+                menu={menu}
+                onEdit={onEditMenu ? () => onEditMenu(menu.id) : undefined}
+                onDelete={onDeleteMenu ? () => onDeleteMenu(menu.id) : undefined}
+              />
             ))}
           </View>
         ) : (

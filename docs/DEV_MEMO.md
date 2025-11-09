@@ -613,3 +613,366 @@ export default function ForgotPasswordScreen() {
   );
 }
 ```
+
+## Turso + Drizzle ORM オフラインファースト統合
+
+### 概要
+
+Tursoのオフラインファースト機能を使い、ローカルSQLiteとクラウドDBを自動同期する構成を実装しました。
+
+**アーキテクチャ：**
+- ローカル：expo-sqlite（デバイス内SQLite）
+- クラウド：Turso（libSQL）
+- 同期：自動バックグラウンド同期
+- ORM：Drizzle ORM（型安全なクエリビルダー）
+- マイグレーション：Drizzle Kit生成 + カスタム適用ロジック
+
+### 1. Tursoクラウドデータベースのセットアップ
+
+```bash
+# Turso CLIでログイン
+turso auth login
+
+# データベース作成
+turso db create ui-gohan
+
+# 接続情報を取得
+turso db show ui-gohan --url
+turso db tokens create ui-gohan
+```
+
+### 2. 環境変数の設定
+
+`.env.local` に以下を追加（EXPO_PUBLIC_プレフィックスが必要）：
+
+```env
+# Drizzle Kit用（プレフィックスなし）
+TURSO_DATABASE_URL=libsql://ui-gohan-xxx.turso.io
+TURSO_AUTH_TOKEN=eyJhbGc...
+
+# React Nativeアプリ用（EXPO_PUBLIC_プレフィックス必須）
+EXPO_PUBLIC_TURSO_DATABASE_URL=libsql://ui-gohan-xxx.turso.io
+EXPO_PUBLIC_TURSO_AUTH_TOKEN=eyJhbGc...
+
+BETTER_AUTH_SECRET=...
+BETTER_AUTH_URL=http://localhost:8081
+```
+
+**重要：** ExpoのビルドプロセスでReact Nativeアプリに環境変数を渡すには`EXPO_PUBLIC_`プレフィックスが必須です。
+
+### 3. expo-sqlite のセットアップ
+
+```bash
+pnpx expo install expo-sqlite
+```
+
+`app.json` の `plugins` に追加：
+
+```json
+"plugins": [
+  "expo-router",
+  [
+    "expo-sqlite",
+    {
+      "useLibSQL": true
+    }
+  ]
+],
+```
+
+### 4. app/_layout.tsx での Turso 接続設定
+
+```tsx
+import { SQLiteProvider } from 'expo-sqlite';
+
+export default function RootLayout() {
+  const { colorScheme } = useColorScheme();
+
+  // Turso接続情報を環境変数から取得
+  const tursoUrl = process.env.EXPO_PUBLIC_TURSO_DATABASE_URL;
+  const tursoAuthToken = process.env.EXPO_PUBLIC_TURSO_AUTH_TOKEN;
+
+  return (
+    <SQLiteProvider
+      databaseName="local.db"
+      options={{
+        enableChangeListener: true,
+        ...(tursoUrl &&
+          tursoAuthToken && {
+            libSQLOptions: {
+              url: tursoUrl,
+              authToken: tursoAuthToken,
+            },
+          }),
+      }}>
+      <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
+        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <Stack />
+        <PortalHost />
+      </ThemeProvider>
+    </SQLiteProvider>
+  );
+}
+```
+
+**ポイント：**
+- `enableChangeListener: true` でリアルタイム更新を有効化
+- 環境変数がない場合は`libSQLOptions`を追加しない（ローカル開発用）
+
+### 5. Drizzle マイグレーションファイルの作成
+
+#### 5.1 babel-plugin-inline-import のインストール
+
+SQLファイルをJSにインライン化するために必要：
+
+```bash
+pnpm add -D babel-plugin-inline-import
+```
+
+`babel.config.js` に追加：
+
+```js
+module.exports = function (api) {
+  api.cache(true);
+  return {
+    presets: [['babel-preset-expo', { jsxImportSource: 'nativewind' }], 'nativewind/babel'],
+    plugins: [
+      ['inline-import', { extensions: ['.sql'] }],
+      [
+        'module-resolver',
+        {
+          alias: {
+            'better-auth/react': './node_modules/better-auth/dist/client/react/index.cjs',
+            'better-auth/client/plugins':
+              './node_modules/better-auth/dist/client/plugins/index.cjs',
+            '@better-auth/expo/client': './node_modules/@better-auth/expo/dist/client.cjs',
+          },
+        },
+      ],
+    ],
+  };
+};
+```
+
+`metro.config.js` にSQL拡張子を追加：
+
+```js
+const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
+
+const config = getDefaultConfig(__dirname);
+
+config.resolver.sourceExts.push('sql');
+config.resolver.unstable_enablePackageExports = true;
+
+module.exports = withNativeWind(config, { input: './global.css', inlineRem: 16 });
+```
+
+`global.d.ts` にSQL型定義を追加：
+
+```ts
+// SQL module declarations for Drizzle migrations
+declare module '*.sql' {
+  const content: string;
+  export default content;
+}
+```
+
+#### 5.2 db/migrations.ts の作成
+
+Drizzle Kitで生成されたマイグレーションファイルをReact Nativeで使える形式に：
+
+```ts
+// SQLマイグレーションを文字列として定義
+const m0000 = `CREATE TABLE \`menus\` (
+  \`id\` text PRIMARY KEY NOT NULL,
+  \`user_id\` text NOT NULL,
+  \`day_of_week\` integer NOT NULL,
+  \`meal_type\` text NOT NULL,
+  \`dish_name\` text NOT NULL,
+  \`memo\` text,
+  \`sort_order\` integer DEFAULT 0 NOT NULL,
+  \`created_at\` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+  \`updated_at\` integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
+);
+`;
+
+export default {
+  journal: {
+    entries: [
+      {
+        idx: 0,
+        when: 1762605597470,
+        tag: '0000_whole_slipstream',
+      },
+    ],
+  },
+  migrations: {
+    '0000_whole_slipstream': m0000,
+  },
+};
+```
+
+**注意：** `useMigrations`フックは複雑なファイル構造の扱いが難しいため、直接SQL実行方式を採用しました。
+
+### 6. マイグレーション適用ロジック（app/index.tsx）
+
+```tsx
+import migrations from '@/db/migrations';
+import { useSQLiteContext } from 'expo-sqlite';
+import { drizzle } from 'drizzle-orm/expo-sqlite';
+
+const DATABASE_VERSION = 1;
+
+export default function HomeScreen() {
+  const sqlite = useSQLiteContext();
+  const db = useMemo(() => drizzle(sqlite), [sqlite]);
+
+  const [migrationSuccess, setMigrationSuccess] = useState(false);
+  const [migrationError, setMigrationError] = useState<Error | null>(null);
+
+  // マイグレーション実行
+  useEffect(() => {
+    async function runMigrations() {
+      try {
+        // 現在のバージョンを確認
+        const result = await sqlite.getFirstAsync<{ user_version: number } | null>(
+          'PRAGMA user_version'
+        );
+        const currentVersion = result?.user_version ?? 0;
+
+        if (currentVersion >= DATABASE_VERSION) {
+          console.log('✅ Database is up to date, version:', currentVersion);
+          setMigrationSuccess(true);
+          return;
+        }
+
+        // Drizzleマイグレーションを順番に実行
+        for (const entry of migrations.journal.entries) {
+          if (entry.idx >= currentVersion) {
+            const migrationSql = migrations.migrations[entry.tag as keyof typeof migrations.migrations];
+            if (migrationSql) {
+              await sqlite.execAsync(migrationSql);
+              console.log(`✅ Migration ${entry.tag} applied successfully`);
+            }
+          }
+        }
+
+        // バージョンを更新
+        await sqlite.execAsync(`PRAGMA user_version = ${DATABASE_VERSION}`);
+        setMigrationSuccess(true);
+      } catch (err) {
+        console.error('Migration error:', err);
+        setMigrationError(err instanceof Error ? err : new Error('Unknown migration error'));
+      }
+    }
+
+    runMigrations();
+  }, [sqlite]);
+
+  // マイグレーション完了後にデータ取得
+  useEffect(() => {
+    if (!migrationSuccess) return;
+
+    async function fetchMenus() {
+      // Drizzle ORMでクエリ
+      const data = await db
+        .select()
+        .from(menus)
+        .where(eq(menus.userId, userId))
+        .orderBy(asc(menus.sortOrder));
+
+      // ...
+    }
+
+    fetchMenus();
+  }, [migrationSuccess, userId, db]);
+}
+```
+
+**ポイント：**
+- `PRAGMA user_version` でマイグレーション状態を管理
+- `migrations.journal.entries` をループして未適用のマイグレーションのみ実行
+- Drizzle ORMの型安全なクエリビルダーを使用
+
+### 7. Turso クラウドへのスキーマプッシュ
+
+```bash
+pnpm drizzle-kit push
+```
+
+これでローカルのスキーマ定義がTursoクラウドデータベースに適用されます。
+
+### 8. 動作確認
+
+```bash
+pnpm dev
+```
+
+**期待されるログ：**
+```
+✅ Database is up to date, version: 1
+# または
+✅ Migration 0000_whole_slipstream applied successfully
+```
+
+### スキーマ変更時のワークフロー
+
+```bash
+# 1. スキーマファイルを編集
+# db/schemas/menu.ts を変更
+
+# 2. マイグレーションを生成
+pnpm drizzle-kit generate
+
+# 3. 生成されたSQLを db/migrations.ts に追加
+# db/migrations/XXXX_new_migration.sql の内容をコピー
+
+# 4. Tursoクラウドに適用
+pnpm drizzle-kit push
+
+# 5. アプリを再起動
+pnpm dev
+# → 新しいマイグレーションが自動適用される
+```
+
+### トラブルシューティング
+
+#### 問題: babel-plugin-inline-import not found
+
+**解決策:**
+```bash
+pnpm add -D babel-plugin-inline-import
+```
+
+#### 問題: .plugins[0][1] must be an object
+
+**原因:** `babel.config.js` の plugins 配列の構造が間違っている
+
+**解決策:** 各プラグインを個別の配列要素として配置：
+```js
+plugins: [
+  ['inline-import', { extensions: ['.sql'] }],
+  ['module-resolver', { alias: {...} }],
+]
+```
+
+#### 問題: Missing migration: 0000_whole_slipstream
+
+**原因:** `useMigrations` フックの期待する形式と合っていない
+
+**解決策:** 直接SQL実行方式に変更（上記の実装参照）
+
+### まとめ
+
+**完成した構成：**
+✅ Drizzle ORM - 型安全なデータ操作
+✅ Drizzle Migrations - `db/migrations.ts`から自動適用
+✅ Turso Sync - クラウドとローカルの自動同期
+✅ オフライン対応 - ネットワークなしでも完全動作
+
+**メリット：**
+- SQLを手書きする必要なし
+- マイグレーション履歴が自動管理される
+- 型安全なクエリビルダー
+- マルチデバイス対応（Turso Sync経由）
