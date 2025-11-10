@@ -1,11 +1,13 @@
 import { DaySection } from '@/components/day-section';
 import { EditMenuDialog } from '@/components/edit-menu-dialog';
+import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { DAY_LABELS } from '@/const/day-of-week';
 import { MEAL_TYPE } from '@/const/meal-type';
 import { useMenuAPI } from '@/lib/api/menus';
 import type { DayOfWeekType, MealTypeType, Menu } from '@/types/menu';
-import { Stack } from 'expo-router';
+import { Link, Stack } from 'expo-router';
+import { Bug } from 'lucide-react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -125,6 +127,14 @@ export default function HomeScreen() {
       <Stack.Screen
         options={{
           title: 'ういごはん',
+          headerRight: () =>
+            __DEV__ ? (
+              <Link href="/debug" asChild>
+                <Button variant="ghost" size="icon">
+                  <Bug className="h-5 w-5" />
+                </Button>
+              </Link>
+            ) : null,
         }}
       />
 

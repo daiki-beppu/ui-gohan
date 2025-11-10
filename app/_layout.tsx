@@ -13,36 +13,48 @@ export { ErrorBoundary } from 'expo-router';
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
 
+  // ローカルモードかどうかを判定
+  const useLocalDB = process.env.EXPO_PUBLIC_USE_LOCAL_DB === 'true';
+
   return (
     <SQLiteProvider
       databaseName="ui-gohan-db"
-      options={{
-        libSQLOptions: {
-          url: process.env.EXPO_PUBLIC_TURSO_DATABASE_URL!,
-          authToken: process.env.EXPO_PUBLIC_TURSO_AUTH_TOKEN!,
-        },
-      }}
+      options={
+        useLocalDB
+          ? {} // ローカルモード：Turso接続なし
+          : {
+              // プロダクションモード：Turso接続あり
+              libSQLOptions: {
+                url: process.env.EXPO_PUBLIC_TURSO_DATABASE_URL!,
+                authToken: process.env.EXPO_PUBLIC_TURSO_AUTH_TOKEN!,
+              },
+            }
+      }
       onInit={async (db: SQLiteDatabase) => {
         console.log('=== データベース初期化開始 ===');
-        console.log('Turso URL:', process.env.EXPO_PUBLIC_TURSO_DATABASE_URL);
-        console.log('Token exists:', !!process.env.EXPO_PUBLIC_TURSO_AUTH_TOKEN);
+        console.log('モード:', useLocalDB ? 'ローカルのみ' : 'Turso接続');
 
-        try {
-          console.log('Turso DB と同期を開始...');
-          await db.syncLibSQL();
-          console.log('✓ Turso DB と同期しました');
-        } catch (error) {
-          if (error instanceof Error && error.message.includes('not supported')) {
-            console.warn('⚠️  同期は開発環境ではサポートされていません');
-            console.warn('→ ローカルDBのみを使用します（実機では自動同期されます）');
-          } else {
-            console.error('✗ データベース同期エラー:', error);
-            if (error instanceof Error) {
-              console.error('エラーメッセージ:', error.message);
-              console.error('エラースタック:', error.stack);
+        // ローカルモードでない場合のみ同期を試みる
+        if (!useLocalDB) {
+          try {
+            console.log('Turso DB と同期を開始...');
+            await db.syncLibSQL();
+            console.log('✓ Turso DB と同期しました');
+          } catch (error) {
+            if (error instanceof Error && error.message.includes('not supported')) {
+              console.warn('⚠️  同期は開発環境ではサポートされていません');
+              console.warn('→ ローカルDBのみを使用します（実機では自動同期されます）');
+            } else {
+              console.error('✗ データベース同期エラー:', error);
+              if (error instanceof Error) {
+                console.error('エラーメッセージ:', error.message);
+                console.error('エラースタック:', error.stack);
+              }
             }
+            // 同期エラーでも続行する
           }
-          // 同期エラーでも続行する（開発中はローカルDBのみ使用）
+        } else {
+          console.log('✓ ローカルモード：Turso同期をスキップ');
         }
 
         try {

@@ -49,6 +49,13 @@ export function useMenuAPI() {
    * Sync with Turso DB
    */
   const syncMenus = useCallback(async () => {
+    const useLocalDB = process.env.EXPO_PUBLIC_USE_LOCAL_DB === 'true';
+
+    if (useLocalDB) {
+      console.log('ローカルモード：同期をスキップ');
+      return;
+    }
+
     console.log('Syncing menus with Turso DB...');
 
     try {
