@@ -11,6 +11,7 @@ import { useColorScheme } from 'nativewind';
 export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
+  const DATABASE_NAME = 'ui-gohan-db';
   const { colorScheme } = useColorScheme();
 
   // ローカルモードかどうかを判定
@@ -18,10 +19,10 @@ export default function RootLayout() {
 
   return (
     <SQLiteProvider
-      databaseName="ui-gohan-db"
+      databaseName={DATABASE_NAME}
       options={
         useLocalDB
-          ? {} // ローカルモード：Turso接続なし
+          ? {} // ローカルモード：Turso接続なし（内部ストレージのみ）
           : {
               // プロダクションモード：Turso接続あり
               libSQLOptions: {
@@ -58,7 +59,7 @@ export default function RootLayout() {
         }
 
         try {
-          const DB_VERSION = 1;
+          const { migrations } = require('@/db/migrations');
 
           console.log('データベースバージョンを確認中...');
           const result = await db.getFirstAsync<{ user_version: number } | null>(
@@ -69,37 +70,20 @@ export default function RootLayout() {
           console.log('現在のDBバージョン:', currentDbVersion);
 
           // マイグレーション不要の場合は早期リターン
-          if (currentDbVersion >= DB_VERSION) {
+          if (currentDbVersion >= migrations.version) {
             console.log('✓ マイグレーション不要');
             return;
           }
 
-          // 既存のバージョンがある場合
-          if (currentDbVersion > 0) {
-            console.log('既存のDBバージョンが検出されました:', currentDbVersion);
-            return;
+          // マイグレーションを実行
+          console.log('マイグレーションを実行中...');
+          for (const statement of migrations.statements) {
+            await db.execAsync(statement);
           }
 
-          // 初回マイグレーション: menus テーブルを作成
-          console.log('初回マイグレーションを実行中...');
-          await db.execAsync(`
-            CREATE TABLE IF NOT EXISTS menus (
-              id TEXT PRIMARY KEY NOT NULL,
-              user_id TEXT NOT NULL,
-              day_of_week INTEGER NOT NULL,
-              meal_type TEXT NOT NULL,
-              dish_name TEXT NOT NULL,
-              memo TEXT,
-              sort_order INTEGER DEFAULT 0 NOT NULL,
-              created_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-              updated_at INTEGER DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
-            );
-          `);
-          console.log('✓ menus テーブルを作成しました');
-
           // バージョンを更新
-          await db.execAsync(`PRAGMA user_version = ${DB_VERSION};`);
-          console.log('✓ 初回マイグレーション完了。DBバージョン:', DB_VERSION);
+          await db.execAsync(`PRAGMA user_version = ${migrations.version};`);
+          console.log('✓ マイグレーション完了。DBバージョン:', migrations.version);
         } catch (error) {
           console.error('✗ マイグレーションエラー:', error);
           if (error instanceof Error) {
