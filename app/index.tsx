@@ -28,6 +28,20 @@ export default function HomeScreen() {
         setIsLoading(true);
         setError(null);
         const menus = await getMenus();
+
+        // データ確認用のログ出力
+        console.log('=== 献立データ取得完了 ===');
+        console.log('件数:', menus.length);
+        console.log('データ:', JSON.stringify(menus, null, 2));
+        console.table(
+          menus.map((m) => ({
+            料理名: m.dishName,
+            曜日: DAY_LABELS[m.dayOfWeek],
+            食事: m.mealType,
+            メモ: m.memo || '-',
+          }))
+        );
+
         setMenuData(menus);
       } catch (err) {
         console.error('Failed to fetch menus:', err);

@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Text } from '@/components/ui/text';
+import { useDrizzleStudio } from 'expo-drizzle-studio-plugin';
 import { Stack } from 'expo-router';
 import { useSQLiteContext } from 'expo-sqlite';
 import { useState } from 'react';
@@ -11,6 +12,7 @@ export default function DebugScreen() {
   const db = useSQLiteContext();
   const [menuCount, setMenuCount] = useState<number | null>(null);
   const [allMenus, setAllMenus] = useState<any[]>([]);
+  useDrizzleStudio(db);
 
   const checkMenuCount = async () => {
     const result = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM menus');

@@ -10,7 +10,9 @@
     "clean": "rm -rf .expo node_modules",
     "lint": "expo lint",
     "format": "prettier --write .",
-    "test": "jest --watchAll"
+    "test": "jest --watchAll",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "jest": {
     "preset": "jest-expo"
@@ -51,6 +53,7 @@
     "drizzle-orm": "^0.44.7",
     "expo": "^54.0.0",
     "expo-constants": "^18.0.10",
+    "expo-drizzle-studio-plugin": "^0.2.1",
     "expo-linking": "~8.0.8",
     "expo-router": "~6.0.10",
     "expo-secure-store": "^15.0.7",
