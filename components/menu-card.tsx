@@ -3,7 +3,6 @@ import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { MEAL_TYPE_LABELS } from '@/const/meal-type';
 import type { Menu } from '@/types/menu';
-import { Pencil, Trash2 } from 'lucide-react-native';
 import { View } from 'react-native';
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card';
 
@@ -27,13 +26,13 @@ export function MenuCard({ menu, onEdit, onDelete }: MenuCardProps) {
         </View>
         <View className="flex-row gap-1">
           {onEdit && (
-            <Button variant="ghost" size="icon" onPress={onEdit}>
-              <Pencil className="h-4 w-4 text-muted-foreground" />
+            <Button variant={'outline'} onPress={onEdit}>
+              <Text>編集</Text>
             </Button>
           )}
           {onDelete && (
-            <Button variant="ghost" size="icon" onPress={onDelete}>
-              <Trash2 className="h-4 w-4 text-destructive" />
+            <Button variant="outline" onPress={onDelete}>
+              <Text>削除</Text>
             </Button>
           )}
         </View>

@@ -26,7 +26,9 @@ import { useMemo, useState } from 'react';
 import { View } from 'react-native';
 
 type EditMenuDialogProps = {
-  menu: Menu;
+  menu?: Menu; // 新規追加の場合は undefined
+  dayOfWeek?: DayOfWeekType; // 新規追加時の初期曜日
+  mealType?: MealTypeType; // 新規追加時の初期食事タイプ
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (updates: {
@@ -37,11 +39,26 @@ type EditMenuDialogProps = {
   }) => void;
 };
 
-export function EditMenuDialog({ menu, open, onOpenChange, onSave }: EditMenuDialogProps) {
-  const [dishName, setDishName] = useState(menu.dishName);
-  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeekType>(menu.dayOfWeek);
-  const [mealType, setMealType] = useState<MealTypeType>(menu.mealType);
-  const [memo, setMemo] = useState(menu.memo || '');
+export function EditMenuDialog({
+  menu,
+  dayOfWeek: initialDayOfWeek,
+  mealType: initialMealType,
+  open,
+  onOpenChange,
+  onSave,
+}: EditMenuDialogProps) {
+  // 新規追加モードかどうか
+  const isNewMenu = !menu;
+
+  // 各フィールドの初期値を設定
+  const [dishName, setDishName] = useState(menu?.dishName || '');
+  const [dayOfWeek, setDayOfWeek] = useState<DayOfWeekType>(
+    menu?.dayOfWeek ?? initialDayOfWeek ?? 0
+  );
+  const [mealType, setMealType] = useState<MealTypeType>(
+    menu?.mealType ?? initialMealType ?? MEAL_TYPE.Dinner
+  );
+  const [memo, setMemo] = useState(menu?.memo || '');
 
   const handleSave = () => {
     onSave({
@@ -73,9 +90,9 @@ export function EditMenuDialog({ menu, open, onOpenChange, onSave }: EditMenuDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="min-w-full">
         <DialogHeader>
-          <DialogTitle>献立を編集</DialogTitle>
+          <DialogTitle>{isNewMenu ? '献立を追加' : '献立を編集'}</DialogTitle>
         </DialogHeader>
 
         <View className="gap-4 py-4">
@@ -90,30 +107,32 @@ export function EditMenuDialog({ menu, open, onOpenChange, onSave }: EditMenuDia
             />
           </View>
 
-          {/* 曜日 */}
-          <View className="gap-2">
-            <Label nativeID="dayOfWeek">曜日</Label>
-            <Select
-              value={{ value: dayOfWeek.toString(), label: DAY_LABELS[dayOfWeek] }}
-              onValueChange={(option) => {
-                if (option) {
-                  setDayOfWeek(parseInt(option.value) as DayOfWeekType);
-                }
-              }}>
-              <SelectTrigger>
-                <SelectValue placeholder="曜日を選択" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectGroup>
-                  {dayOptions.map((option) => (
-                    <SelectItem key={option.value} label={option.label} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              </SelectContent>
-            </Select>
-          </View>
+          {/* 曜日（編集モードのみ表示） */}
+          {!isNewMenu && (
+            <View className="gap-2">
+              <Label nativeID="dayOfWeek">曜日</Label>
+              <Select
+                value={{ value: dayOfWeek.toString(), label: DAY_LABELS[dayOfWeek] }}
+                onValueChange={(option) => {
+                  if (option) {
+                    setDayOfWeek(parseInt(option.value) as DayOfWeekType);
+                  }
+                }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="曜日を選択" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectGroup>
+                    {dayOptions.map((option) => (
+                      <SelectItem key={option.value} label={option.label} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
+            </View>
+          )}
 
           {/* 食事タイプ */}
           <View className="gap-2">

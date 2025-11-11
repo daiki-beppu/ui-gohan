@@ -17,6 +17,7 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [editingMenu, setEditingMenu] = useState<Menu | null>(null);
+  const [addingMenuDayOfWeek, setAddingMenuDayOfWeek] = useState<DayOfWeekType | null>(null);
 
   // Menu API フックを取得
   const { getMenus, createMenu, updateMenu, deleteMenu } = useMenuAPI();
@@ -54,28 +55,10 @@ export default function HomeScreen() {
     fetchMenus();
   }, [getMenus]);
 
-  // 献立を追加するハンドラー
-  const handleAddMenu = useCallback(
-    async (dayOfWeek: DayOfWeekType) => {
-      try {
-        // 新しい献立を作成（デフォルト値）
-        const newMenu = await createMenu({
-          dayOfWeek,
-          mealType: MEAL_TYPE.Dinner, // デフォルトは夕食
-          dishName: '新しい献立',
-          memo: null,
-          sortOrder: menuData.filter((m) => m.dayOfWeek === dayOfWeek).length,
-        });
-
-        // ローカルの状態を更新
-        setMenuData((prev) => [...prev, newMenu]);
-      } catch (err) {
-        console.error('Failed to create menu:', err);
-        setError(err instanceof Error ? err : new Error('献立の追加に失敗しました'));
-      }
-    },
-    [createMenu, menuData]
-  );
+  // 献立を追加するハンドラー（モーダルを表示）
+  const handleAddMenu = useCallback((dayOfWeek: DayOfWeekType) => {
+    setAddingMenuDayOfWeek(dayOfWeek);
+  }, []);
 
   // 献立を削除するハンドラー
   const handleDeleteMenu = useCallback(
@@ -104,7 +87,7 @@ export default function HomeScreen() {
     [menuData]
   );
 
-  // 献立を保存するハンドラー
+  // 献立を保存するハンドラー（新規作成と更新の両方を処理）
   const handleSaveMenu = useCallback(
     async (updates: {
       dayOfWeek: DayOfWeekType;
@@ -112,21 +95,35 @@ export default function HomeScreen() {
       dishName: string;
       memo: string | null;
     }) => {
-      if (!editingMenu) return;
-
       try {
-        const updatedMenu = await updateMenu(editingMenu.id, updates);
+        // 既存の献立を更新
+        if (editingMenu) {
+          const updatedMenu = await updateMenu(editingMenu.id, updates);
+          setMenuData((prev) =>
+            prev.map((menu) => (menu.id === editingMenu.id ? updatedMenu : menu))
+          );
+          return;
+        }
 
-        // ローカルの状態を更新
-        setMenuData((prev) =>
-          prev.map((menu) => (menu.id === editingMenu.id ? updatedMenu : menu))
-        );
+        // 新しい献立を作成
+        if (addingMenuDayOfWeek !== null) {
+          const sortOrder = menuData.filter((m) => m.dayOfWeek === updates.dayOfWeek).length;
+          const newMenu = await createMenu({
+            ...updates,
+            sortOrder,
+          });
+          setMenuData((prev) => [...prev, newMenu]);
+        }
       } catch (err) {
-        console.error('Failed to update menu:', err);
-        setError(err instanceof Error ? err : new Error('献立の更新に失敗しました'));
+        console.error('Failed to save menu:', err);
+        setError(
+          err instanceof Error
+            ? err
+            : new Error(editingMenu ? '献立の更新に失敗しました' : '献立の追加に失敗しました')
+        );
       }
     },
-    [editingMenu, updateMenu]
+    [editingMenu, addingMenuDayOfWeek, menuData, updateMenu, createMenu]
   );
 
   // 曜日ごとにグループ化
@@ -185,6 +182,17 @@ export default function HomeScreen() {
           menu={editingMenu}
           open={!!editingMenu}
           onOpenChange={(open) => !open && setEditingMenu(null)}
+          onSave={handleSaveMenu}
+        />
+      )}
+
+      {/* 追加ダイアログ */}
+      {addingMenuDayOfWeek !== null && (
+        <EditMenuDialog
+          dayOfWeek={addingMenuDayOfWeek}
+          mealType={MEAL_TYPE.Dinner}
+          open={addingMenuDayOfWeek !== null}
+          onOpenChange={(open) => !open && setAddingMenuDayOfWeek(null)}
           onSave={handleSaveMenu}
         />
       )}
