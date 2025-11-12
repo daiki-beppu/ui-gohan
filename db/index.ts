@@ -1,12 +1,14 @@
-import { drizzle } from 'drizzle-orm/expo-sqlite';
-import { openDatabaseSync } from 'expo-sqlite';
-import * as schema from './schemas/menu';
+/**
+ * Database schema exports for Expo SQLite
+ *
+ * This file exports database schemas for use with drizzle-orm/expo-sqlite.
+ * For React Native/Expo, we use local SQLite with Turso sync via expoDb.syncLibSQL()
+ * instead of direct Turso connection (which requires Node.js runtime).
+ */
 
-// データベースを開く
-const expoDb = openDatabaseSync('ui-gohan-db.db');
+import * as menuSchema from 'db/schemas/menu';
 
-// Drizzle インスタンスを作成
-export const db = drizzle(expoDb, { schema });
-
-// スキーマをエクスポート
-export { schema };
+// Export all schemas for use with drizzle(expoDb, { schema })
+export const schema = {
+  ...menuSchema,
+};
