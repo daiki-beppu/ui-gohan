@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import '@/global.css';
 
 import { NAV_THEME } from '@/lib/theme';
@@ -6,13 +8,14 @@ import { PortalHost } from '@rn-primitives/portal';
 import { Stack } from 'expo-router';
 import { SQLiteDatabase, SQLiteProvider } from 'expo-sqlite';
 import { StatusBar } from 'expo-status-bar';
+import { Moon, Sun } from 'lucide-react-native';
 import { useColorScheme } from 'nativewind';
 
 export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
   const DATABASE_NAME = 'ui-gohan-db';
-  const { colorScheme } = useColorScheme();
+  const { colorScheme, toggleColorScheme } = useColorScheme();
 
   // ローカルモードかどうかを判定
   const useLocalDB = process.env.EXPO_PUBLIC_USE_LOCAL_DB === 'true';
@@ -100,7 +103,15 @@ export default function RootLayout() {
       }}>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-        <Stack />
+        <Stack
+          screenOptions={{
+            headerLeft: () => (
+              <Button variant={'ghost'} size={'icon'} onPress={toggleColorScheme}>
+                {colorScheme === 'dark' ? <Icon as={Sun} /> : <Icon as={Moon} />}
+              </Button>
+            ),
+          }}
+        />
         <PortalHost />
       </ThemeProvider>
     </SQLiteProvider>

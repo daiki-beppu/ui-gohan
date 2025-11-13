@@ -1,6 +1,7 @@
 import { DaySection } from '@/components/day-section';
 import { EditMenuDialog } from '@/components/edit-menu-dialog';
 import { Button } from '@/components/ui/button';
+import { Icon } from '@/components/ui/icon';
 import { Text } from '@/components/ui/text';
 import { DAY_LABELS } from '@/const/day-of-week';
 import { MEAL_TYPE } from '@/const/meal-type';
@@ -142,7 +143,7 @@ export default function HomeScreen() {
             __DEV__ ? (
               <Link href="/debug" asChild>
                 <Button variant="ghost" size="icon">
-                  <Bug className="h-5 w-5" />
+                  <Icon as={Bug} />
                 </Button>
               </Link>
             ) : null,
